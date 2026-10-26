@@ -67,12 +67,12 @@ def patch_decision(s):
 ''','''        Boolean autoTap = input.autoTap();
         if (Boolean.getBoolean("mgs.strictDecisions") && Boolean.TRUE.equals(autoTap)) {
             return chooseActionDone(buildChooseActionError(result, "mgs_integrity_abort",
-                "MGS_INTEGRITY_ABORT: autoTap forbidden", false, action));
+                "MGS_INTEGRITY_ABORT: autoTap forbidden", false, action, false));
         }
         if (processorState.interactionState().interactionsThisTurn() > processorState.interactionState().maxInteractionsPerTurn()) {
             if (Boolean.getBoolean("mgs.strictDecisions")) {
                 return chooseActionDone(buildChooseActionError(result, "mgs_integrity_abort",
-                    "MGS_INTEGRITY_ABORT: interaction_limit", false, action));
+                    "MGS_INTEGRITY_ABORT: interaction_limit", false, action, false));
             }
 ''',"choose_action_limit")
     s=replace(s,"processorState.interactionState().setManaPlan(parsedPlan, !(autoTap != null && !autoTap));","processorState.interactionState().setManaPlan(parsedPlan,\n                                        !Boolean.getBoolean(\"mgs.strictDecisions\") && !(autoTap != null && !autoTap));","mana_fallback")
@@ -119,7 +119,7 @@ def main():
         receipt["source_pin_verified"]=True
         receipt["patch_sha256"]=sha(out/"strict_bridge.diff")
         receipt["patched_files_sha256"]={name:sha(repo/ROOT/name) for name in PATCHERS}
-        cmd=["mvn","-B","-ntp","install","package","-DskipTests"]
+        cmd=["mvn","-B","-ntp","-pl","Mage.Client.Bridge","-am","-DskipTests","-Dmaven.build.cache.enabled=false","install"]
         receipt["maven_command"]=cmd
         receipt["maven_exit_code"]=run(cmd,repo,out/"maven-build.log")
         receipt["maven_log_sha256"]=sha(out/"maven-build.log")
