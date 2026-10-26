@@ -1,0 +1,43 @@
+name: MGS strict bridge Java compilation
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  pinned-bridge-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout MGS tools
+        uses: actions/checkout@v4
+      - name: Checkout pinned mage-bench
+        uses: actions/checkout@v4
+        with:
+          repository: GregorStocks/mage-bench
+          ref: 2e68eefa05d9d24895eac45162ff2ff4489103f1
+          path: upstream
+          persist-credentials: false
+      - name: Configure Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: upstream/pom.xml
+      - name: Run offline tooling tests
+        run: python3 -m unittest discover -v -p 'test_*.py'
+      - name: Compile guarded bridge
+        run: python3 mgs_build_probe.py --repo upstream --evidence evidence
+      - name: Upload build evidence (including failures)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mgs-strict-bridge-build-evidence
+          path: |
+            evidence/build_receipt.json
+            evidence/strict_bridge.diff
+            evidence/maven-build.log
+          if-no-files-found: warn
+# Compilation does not certify Commander gameplay or replay.
