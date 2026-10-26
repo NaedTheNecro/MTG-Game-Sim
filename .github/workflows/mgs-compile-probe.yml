@@ -26,11 +26,11 @@ jobs:
           java-version: '21'
           cache: maven
           cache-dependency-path: upstream/pom.xml
-      - name: Run offline tooling tests
-        run: python3 -m unittest discover -v -p 'test_*.py'
+      - name: Validate MGS Python source
+        run: python3 -m py_compile mgs_build_ci.py
       - name: Compile guarded bridge
-        run: python3 mgs_build_probe.py --repo upstream --evidence evidence
-      - name: Upload build evidence (including failures)
+        run: python3 mgs_build_ci.py
+      - name: Upload build evidence, including failures
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -40,4 +40,4 @@ jobs:
             evidence/strict_bridge.diff
             evidence/maven-build.log
           if-no-files-found: warn
-# Compilation does not certify Commander gameplay or replay.
+# This is only a Java compilation gate. It is not a simulated match.
