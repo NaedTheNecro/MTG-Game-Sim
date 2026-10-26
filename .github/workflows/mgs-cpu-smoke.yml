@@ -1,0 +1,67 @@
+name: MGS four-player Commander CPU infrastructure smoke
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  four-player-cpu-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: GregorStocks/mage-bench
+          ref: 2e68eefa05d9d24895eac45162ff2ff4489103f1
+          path: upstream
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: upstream/pom.xml
+      - name: Install prerequisites
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb libgl1-mesa-dri
+          python3 -m pip install --user uv
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Strict bridge source patch and full runtime module build
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          import mgs_build_ci
+          root=pathlib.Path("upstream")/mgs_build_ci.ROOT
+          for name,fn in mgs_build_ci.PATCHERS.items():
+              p=root/name
+              p.write_text(fn(p.read_text()))
+          PY
+          cd upstream
+          mvn -B -ntp -pl Mage.Server,Mage.Client,Mage.Client.Bridge,Mage.Client.Observer -am -DskipTests -Dmaven.build.cache.enabled=false install > ../evidence-maven.log 2>&1
+      - name: Generate fixed, exact 99+1 Commander decks
+        run: python3 mgs_cpu_smoke.py prepare
+      - name: Execute four CPU players under actual XMage rules
+        id: run_game
+        continue-on-error: true
+        run: |
+          cd upstream
+          uv run python -m magebench.cli --observer --skip-compile --config configs/mgs-cpu-smoke.json > ../evidence-game-run.log 2>&1
+      - name: Audit observer evidence
+        id: audit
+        if: always()
+        run: python3 mgs_cpu_smoke.py audit
+      - name: Upload unmodified records
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mgs-cpu-smoke-evidence
+          path: |
+            evidence/
+            evidence-maven.log
+            evidence-game-run.log
+          if-no-files-found: warn
+          retention-days: 30
+# CPU smoke game cannot certify MGS external policy or independent replay.
