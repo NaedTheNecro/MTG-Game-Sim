@@ -62,6 +62,7 @@ def patch_decision(s):
         var result = new HashMap<String, Object>();
 ''',"default_action")
     s=replace(s,'''        Boolean autoTap = input.autoTap();
+
         if (processorState.interactionState().interactionsThisTurn() > processorState.interactionState().maxInteractionsPerTurn()) {
 ''','''        Boolean autoTap = input.autoTap();
         if (Boolean.getBoolean("mgs.strictDecisions") && Boolean.TRUE.equals(autoTap)) {
