@@ -1,6 +1,8 @@
 name: MGS four external policies bounded XMage plumbing trial
 on:
   workflow_dispatch:
+  push:
+    branches: [mgs/explicit-agent-prototype]
 permissions:
   contents: read
 jobs:
