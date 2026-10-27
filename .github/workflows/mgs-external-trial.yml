@@ -48,7 +48,8 @@ jobs:
         continue-on-error: true
         run: |
           mkdir -p evidence
-          timeout --signal=TERM --kill-after=10s 420s uv run --project upstream --no-sync python mgs_external_runner.py --max-decisions 5 > mgs-external-run.log 2>&1
+          cd upstream
+          timeout --signal=TERM --kill-after=10s 420s uv run python ../mgs_external_runner.py --upstream . --evidence ../evidence --max-decisions 5 > ../mgs-external-run.log 2>&1
       - name: Upload raw evidence regardless of outcome
         if: always()
         uses: actions/upload-artifact@v4
