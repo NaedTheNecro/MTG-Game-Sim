@@ -1,0 +1,16 @@
+name: MGS explicit policy offline contract
+on:
+  push:
+    branches: [mgs/explicit-agent-prototype]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  deterministic-decision-contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify policies reject implicit decisions
+        run: python3 -m unittest -v test_mgs_explicit_policy.py
+# This is an offline contract test. It does NOT run XMage.
