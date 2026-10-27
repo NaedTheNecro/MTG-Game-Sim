@@ -1,0 +1,63 @@
+name: MGS four external policies bounded XMage plumbing trial
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  four-process-bridge-trial:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: GregorStocks/mage-bench
+          ref: 2e68eefa05d9d24895eac45162ff2ff4489103f1
+          path: upstream
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: upstream/pom.xml
+      - name: Prerequisites
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb libgl1-mesa-dri
+          python3 -m pip install --user uv
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Validate Python
+        run: |
+          python3 -m unittest -v test_mgs_explicit_policy.py
+          python3 -m py_compile mgs_bridge_agent.py mgs_external_runner.py
+      - name: Patch strict bridge and build full runtime
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          import mgs_build_ci
+          root=pathlib.Path("upstream")/mgs_build_ci.ROOT
+          for name,func in mgs_build_ci.PATCHERS.items():
+              p=root/name
+              p.write_text(func(p.read_text()))
+          PY
+          cd upstream
+          mvn -B -ntp -pl Mage.Server,Mage.Client,Mage.Client.Bridge,Mage.Client.Observer -am -DskipTests -Dmaven.build.cache.enabled=false install > ../mgs-external-maven.log 2>&1
+      - name: Execute bounded external bridge trial (fail-closed)
+        id: runtime
+        continue-on-error: true
+        run: |
+          mkdir -p evidence
+          timeout --signal=TERM --kill-after=10s 420s uv run --project upstream --no-sync python mgs_external_runner.py --max-decisions 5 > mgs-external-run.log 2>&1
+      - name: Upload raw evidence regardless of outcome
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mgs-external-trial-uncertified
+          path: |
+            evidence/
+            mgs-external-run.log
+            mgs-external-maven.log
+          if-no-files-found: warn
+          retention-days: 30
+# WARNING: this is an incomplete and noncompetitive pilot, not a certified game.
